@@ -1,183 +1,626 @@
-# ReachInbox - Enterprise Production-Grade Email Job Scheduler & Dashboard
+﻿# EmailOrchestrator — Enterprise Email Job Scheduler & Dashboard
 
-This repository contains the complete full-stack implementation for the **ReachInbox Hiring Assignment**. It is a restart-safe, multi-tenant email job scheduler and SaaS monitoring dashboard built with TypeScript, Express.js, BullMQ, Redis, PostgreSQL, Prisma, Elasticsearch, Nodemailer (Ethereal Mail), React, Vite, and Tailwind CSS.
-
----
-backend - https://reachinbox-backend-api-v1.onrender.com/
-
-frontend - https://email-scheduling-platform-ai25.vercel.app/
-
-bullboard queue dashboard - https://reachinbox-backend-api-v1.onrender.com/admin/queues
-## ⚡ Absolute Design Guarantees
-
-- **Zero Cron Jobs:** 100% of delayed scheduling relies natively on **BullMQ delayed jobs backed by Redis sorted sets (`ZSET`)**. No `cron`, `node-cron`, `agenda`, or polling loops.
-- **Restart Persistence:** Process crashes do not drop or reset jobs. Jobs due while offline execute immediately upon startup; future jobs execute at their exact scheduled time.
-- **Atomic Rate Limiting:** Enforces hourly rate limits per sender across concurrent worker instances using an **atomic Redis Lua script**. Jobs exceeding limits are rescheduled to the next hourly window (never dropped or failed).
-- **Slack OAuth Alerts:** Triggers automated Slack notifications when a sender's rate limit is hit.
-- **Elasticsearch Search Engine:** Sent and scheduled emails are indexed in Elasticsearch with multi-field full-text search, with an automatic fallback to PostgreSQL `ILIKE`.
-
-## Screenshots
-
-### Login
-
-![ReachInbox Login](frontend/assets/login-page.png)
-
-### Dashboard
-
-![ReachInbox Dashboard](frontend/assets/dashboard.png)
-
-### Processing
-
-![Email Processing](frontend/assets/processing.png)
-
-### BullMQ Dashboard
-
-![BullMQ Dashboard](frontend/assets/bullmq-dashboard.png)
-
-### Compose Email
-
-![Compose Email](frontend/assets/compose-email.png)
+A production-grade, restart-safe, multi-tenant email scheduling platform built with **TypeScript, Express.js, BullMQ, Redis, PostgreSQL, Prisma, Elasticsearch, React, Vite, and Tailwind CSS**.
 
 ---
 
-## 🚀 Quick Start Guide
+## Live URLs
+
+| Service | URL |
+|---|---|
+| Frontend Dashboard | https://emailorchestrator.myysite.me |
+| Backend API | https://api.emailorchestrator.myysite.me |
+| BullMQ Queue Dashboard | https://api.emailorchestrator.myysite.me/admin/queues |
+
+---
+
+## Core Design Guarantees
+
+- **Zero Cron Jobs:** BullMQ delayed jobs backed by Redis sorted sets (ZSET). No `cron`, `node-cron`, `agenda`, or polling loops.
+- **Restart Persistence:** Jobs survive process crashes. Past-due jobs run on restart; future jobs run at exact scheduled time.
+- **Atomic Rate Limiting:** Per-sender hourly rate limits via atomic Redis Lua script. Over-limit jobs rescheduled, never dropped.
+- **Slack OAuth Alerts:** Automated Slack notifications when rate limits are hit.
+- **Elasticsearch Search:** Full-text search with automatic PostgreSQL ILIKE fallback.
+
+---
+
+## Architecture
+
+```
+                      Namecheap DNS
+                           |
+             +-------------+-------------+
+             |                           |
+  emailorchestrator.myysite.me   api.emailorchestrator.myysite.me
+             |                           |
+             +-------------+-------------+
+                           |
+                   AWS EC2 t2.micro
+                   Ubuntu 22.04 LTS
+                   +---------------+
+                   |    NGINX      |  (port 80/443, free SSL)
+                   +-------+-------+
+                           |
+              +------------+------------+
+              |                         |
+    Serve /dist (React)        Proxy to :5000
+    emailorchestrator.          api.emailorchestrator.
+       myysite.me                  myysite.me
+                                       |
+                              PM2 Process Manager
+                          +------------+------------+
+                          |                         |
+                   Express API              BullMQ Worker
+                   :5000                   (background)
+                          |
+            +-------------+-----------+
+            |             |           |
+        PostgreSQL      Redis     Elasticsearch
+        AWS RDS Free   Upstash    Bonsai.io
+        (12 months)    Free       Free Sandbox
+```
+
+---
+
+## Local Development
 
 ### Prerequisites
-- **Node.js**: v18+ or v20 LTS
-- **Docker & Docker Compose**: For local PostgreSQL, Redis, and Elasticsearch containers
+- Node.js v18+ or v20 LTS
+- Docker & Docker Compose
 
-### 1. Launch Infrastructure
-Start PostgreSQL (port 5432), Redis (port 6379), and Elasticsearch (port 9200) using Docker Compose:
+### Setup
 ```bash
-docker-compose up -d
-```
-
-### 2. Environment Configuration
-Create environment files:
-```bash
-cp .env.example .env
-```
-
-### 3. Install Dependencies & Setup Database
-Run the setup script from root:
-```bash
-# Install backend and frontend dependencies
-npm run setup
-
-# Run PostgreSQL database migrations and seed sample data
+git clone https://github.com/YOUR_USERNAME/email-orchestrator.git
+cd email-orchestrator
+cp .env.example .env          # edit this with your local values
+npm run setup                 # installs backend + frontend deps
+docker-compose up -d          # start postgres, redis, elasticsearch
 cd backend
 npx prisma migrate dev --name init
 npx prisma db seed
 cd ..
 ```
 
-### 4. Run Application Components
-Launch all processes concurrently:
+### Run
+```bash
+npm run dev:backend    # Terminal 1 — API server at :5000
+npm run dev:worker     # Terminal 2 — BullMQ worker
+npm run dev:frontend   # Terminal 3 — React at :3000
+```
+
+URLs:
+- Frontend: http://localhost:3000
+- API: http://localhost:5000
+- BullMQ Board: http://localhost:5000/admin/queues
+
+---
+
+## AWS Free Tier Deployment — Complete Guide
+
+### What You Need Before Starting
+- AWS account (free tier)
+- GitHub account
+- Namecheap domain: `emailorchestrator.myysite.me` (from GitHub Student Pack)
+- Upstash account (upstash.com)
+- Bonsai.io account (bonsai.io)
+
+### Final Cost: $0/month for 12 months
+
+| Service | Plan | Cost |
+|---|---|---|
+| EC2 t2.micro | Free tier (750 hrs/month) | Free |
+| RDS PostgreSQL t3.micro | Free tier (750 hrs/month) | Free |
+| Upstash Redis | Free (10,000 cmds/day) | Free |
+| Bonsai.io Elasticsearch | Free sandbox (125MB) | Free |
+| Let's Encrypt SSL | Always free | Free |
+
+---
+
+### PHASE 1 — Push to GitHub
 
 ```bash
-# Option A: Run services in separate terminals
-# Terminal 1: API Server
-npm run dev:backend
-
-# Terminal 2: BullMQ Worker Process
-npm run dev:worker
-
-# Terminal 3: React Frontend Dashboard
-npm run dev:frontend
-```
-
-Open your browser at:
-- **Frontend Dashboard:** [http://localhost:3000](http://localhost:3000)
-- **Backend API:** [http://localhost:5000](http://localhost:5000)
-- **Live BullMQ Board:** [http://localhost:5000/admin/queues](http://localhost:5000/admin/queues)
-
----
-
-## 📐 Architecture Overview
-
-```
-+-----------------------------------------------------------------------------------+
-|                                 FRONTEND (React + Vite)                           |
-|  - Real Google OAuth & Instant Demo Login                                        |
-|  - Real Slack OAuth Authorization                                                 |
-|  - CSV Lead Parser (Client-side validation & duplicate removal)                   |
-|  - Scheduled & Sent Email Tables (Paginated, Searchable via Elasticsearch)         |
-+----------------------------------------+------------------------------------------+
-                                         | HTTP / REST (JWT Cookie)
-                                         v
-+-----------------------------------------------------------------------------------+
-|                              BACKEND API (Express.js)                             |
-|  - Auth Controllers (Google ID Token -> HttpOnly Session Cookie)                  |
-|  - Email Scheduling Endpoint (Zod Validation -> DB Tx -> Queue Add)               |
-|  - Slack OAuth Controller (Exchange Auth Code -> AES-256 Encrypted Storage)        |
-|  - Search API (Routes query to Elasticsearch, degrades gracefully to Postgres)    |
-|  - BullBoard Dashboard Route (/admin/queues - Protected Session)                  |
-+-------------------+--------------------+--------------------+---------------------+
-                    |                    |                    |
-        Transactional |                    | Queue Job          | Sync / Index
-        Read / Write|                    | Enqueue            |
-                    v                    v                    v
-         +------------------+    +------------------+    +------------------+
-         |    PostgreSQL    |    |   Redis / BullMQ |    |  Elasticsearch   |
-         |  - Users         |    |  - Delayed ZSET  |    |  - email_index   |
-         |  - Senders       |    |  - Waiting Queue |    |    (Full text)   |
-         |  - Emails        |    |  - Sliding Window|    +------------------+
-         |  - Slack Tokens  |    |    Lua Counters  |
-         +------------------+    +--------+---------+
-                                          |
-                                          | Job Pickup (Worker Concurrency = 10)
-                                          v
-+-----------------------------------------------------------------------------------+
-|                               BULLMQ WORKER PROCESS                               |
-|  1. Pick up delayed job from Redis ZSET                                           |
-|  2. Atomic State Transition in PostgreSQL (QUEUED -> PROCESSING)                  |
-|  3. Atomic Redis Sliding-Window Rate Limit Check per Sender (Lua Script)          |
-|     |                                                                             |
-|     +---> IF LIMIT EXCEEDED:                                                      |
-|     |     - Calculate delay until next hourly window                              |
-|     |     - Move job to delayed state (DO NOT FAIL OR DROP)                       |
-|     |     - Dispatch Slack Notification (if connected & deduplicated)             |
-|     |                                                                             |
-|     +---> IF WITHIN LIMIT:                                                        |
-|           - Execute SMTP send via Nodemailer / Ethereal Mail                      |
-|           - Update DB: status = SENT, providerMessageId = Ethereal ID             |
-|           - Sync state change to Elasticsearch                                    |
-|           - Enforce inter-email minimum delay before releasing worker thread      |
-+-----------------------------------------------------------------------------------+
+# In your project root folder:
+git init
+git add .
+git commit -m "feat: initial EmailOrchestrator commit"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/email-orchestrator.git
+git push -u origin main
 ```
 
 ---
 
-## 🔒 Idempotency & Delivery Guarantees
+### PHASE 2 — Create Free External Services
 
-1. **Deterministic Job IDs:** BullMQ job ID matches the PostgreSQL Email primary key UUID (`email.id`).
-2. **Atomic DB State Lock:** Worker executes `UPDATE emails SET status = 'PROCESSING' WHERE id = $1 AND status IN ('SCHEDULED', 'QUEUED', 'RATE_LIMITED') RETURNING id`. If 0 rows updated, execution halts.
-3. **Provider Message ID Tracking:** Ethereal SMTP message ID is stored upon send completion. On retries, existing provider IDs prevent duplicate re-sends.
+#### 2A — Upstash Redis
+
+1. Go to https://console.upstash.com → Sign Up
+2. Click **Create Database**
+3. Name: `email-orchestrator-redis` | Region: `us-east-1` | Type: Regional
+4. Click **Create**
+5. In **Details** tab, copy the **REDIS_URL** (starts with `rediss://`)
+
+```
+rediss://default:ABCDEFG@your-host.upstash.io:6379
+```
+
+#### 2B — Bonsai.io Elasticsearch
+
+1. Go to https://bonsai.io → Sign Up (no credit card)
+2. Click **Create Cluster** → Plan: **Sandbox** (free)
+3. Name: `email-orchestrator-es`
+4. Wait ~2 minutes → Go to **Credentials** tab
+5. Copy the full URL:
+
+```
+https://USERNAME:PASSWORD@abc123.bonsaisearch.net:443
+```
+
+#### 2C — AWS RDS PostgreSQL
+
+1. AWS Console → search **RDS** → **Create database**
+2. Choose: **Standard create** → **PostgreSQL**
+3. Template: **Free tier**
+4. Settings:
+   - DB identifier: `email-orchestrator-db`
+   - Master username: `postgres`
+   - Master password: choose a strong password, save it
+5. Instance: `db.t3.micro` | Storage: `20 GB gp2`
+6. Connectivity:
+   - Public access: **YES**
+   - Create new security group: `email-orchestrator-rds-sg`
+7. Additional config → Initial database name: `email_orchestrator`
+8. Click **Create database** (takes ~5 minutes)
+
+After creation: Go to the DB → copy the **Endpoint** hostname.
+
+```
+postgresql://postgres:YOUR_PASSWORD@email-orchestrator-db.XXXXXXXX.us-east-1.rds.amazonaws.com:5432/email_orchestrator?schema=public
+```
+
+**Allow connections to RDS:**
+RDS Console → your DB → under Security → click the VPC security group →
+Inbound rules → Edit → Add rule:
+- Type: PostgreSQL | Port: 5432 | Source: `0.0.0.0/0`
+- Save rules
 
 ---
 
-## 📊 Feature Mapping Matrix
+### PHASE 3 — Launch AWS EC2 Instance
 
-| Feature | Backend Source Code | Frontend Source Code |
-| :--- | :--- | :--- |
-| **No-Cron BullMQ Queue** | `backend/src/queue/emailQueue.ts` | - |
-| **Worker Concurrency & Lifecycle** | `backend/src/queue/worker.ts` | - |
-| **Atomic Redis Rate Limiter** | `backend/src/services/rateLimiterService.ts` | - |
-| **Slack OAuth & Alerts** | `backend/src/services/slackService.ts` | `frontend/src/pages/SettingsPage.tsx` |
-| **Elasticsearch & Search Fallback** | `backend/src/services/elasticsearchService.ts` | `frontend/src/components/dashboard/SearchBar.tsx` |
-| **Google OAuth & JWT Sessions** | `backend/src/services/authService.ts` | `frontend/src/pages/LoginPage.tsx` |
-| **CSV Lead Parser** | - | `frontend/src/hooks/useCsvParser.ts` |
-| **Live Queue Dashboard** | `backend/src/app.ts` (`/admin/queues`) | `frontend/src/components/layout/Header.tsx` |
+#### 3A — Create the Instance
+
+1. AWS Console → **EC2** → **Launch Instance**
+2. Name: `email-orchestrator-server`
+3. AMI: **Ubuntu Server 22.04 LTS** (Free Tier eligible)
+4. Instance type: **t2.micro** (Free Tier)
+5. Key pair: **Create new key pair**
+   - Name: `email-orchestrator-key`
+   - Type: RSA | Format: `.pem`
+   - Click Create → `.pem` file downloads to your PC
+6. Network settings → **Edit**:
+   - Auto-assign public IP: **Enable**
+   - Create security group: `email-orchestrator-sg`
+   - Add inbound rules:
+
+| Type | Port | Source | Why |
+|---|---|---|---|
+| SSH | 22 | My IP | For you to SSH in |
+| HTTP | 80 | 0.0.0.0/0 | HTTP traffic |
+| HTTPS | 443 | 0.0.0.0/0 | HTTPS traffic |
+
+7. Storage: `8 GB gp2`
+8. Click **Launch Instance**
+
+#### 3B — Allocate a Static (Elastic) IP
+
+> Regular EC2 IPs change on every restart. Elastic IP is permanent and free while attached.
+
+1. EC2 Console → left sidebar → **Elastic IPs**
+2. Click **Allocate Elastic IP address** → **Allocate**
+3. Select the new IP → **Actions** → **Associate Elastic IP address**
+4. Instance: select `email-orchestrator-server`
+5. Click **Associate**
+6. Save this IP (e.g. `3.84.XXX.XXX`) — you will use it in DNS
+
+#### 3C — Connect to EC2 via SSH
+
+```powershell
+# Windows PowerShell — fix key file permissions first
+icacls "C:\Users\admin\Downloads\email-orchestrator-key.pem" /inheritance:r /grant:r "%username%:R"
+
+# Connect (replace with your Elastic IP)
+ssh -i "C:\Users\admin\Downloads\email-orchestrator-key.pem" ubuntu@3.84.XXX.XXX
+```
 
 ---
 
-## 📽️ Demo & Restart Verification Steps
+### PHASE 4 — Configure DNS in Namecheap
 
-1. **Login:** Open `http://localhost:3000` and click **"Instant Demo Account Login"** or **"Sign in with Google OAuth"**.
-2. **Schedule Sequence:** Click **"Compose Email"**, upload a CSV lead list or paste emails, set start time, spacing (2s), and rate limit (e.g. 5/hr). Click **Schedule**.
-3. **Live Queue Monitoring:** Open `http://localhost:5000/admin/queues` to observe delayed and active jobs.
-4. **Server Restart Demonstration:**
-   - Stop the backend process (`Ctrl+C` in `npm run dev:backend`).
-   - Notice Redis retains all delayed jobs in its ZSET.
-   - Restart backend (`npm run dev:backend`). Future scheduled emails complete at their exact scheduled time.
-5. **Slack Rate Limit Notification:** Connect Slack in settings. Schedule emails exceeding hourly limit. Observe the live Slack alert message arriving in your channel.
+1. Go to https://www.namecheap.com → Login → **Domain List**
+2. Click **Manage** next to `myysite.me`
+3. Click **Advanced DNS** tab
+4. Delete any existing A/CNAME records for `emailorchestrator` if present
+5. Add these 2 records:
+
+| Type | Host | Value | TTL |
+|---|---|---|---|
+| A Record | `emailorchestrator` | `YOUR_EC2_ELASTIC_IP` | Automatic |
+| A Record | `api.emailorchestrator` | `YOUR_EC2_ELASTIC_IP` | Automatic |
+
+> Both subdomains point to the same EC2 IP. Nginx on EC2 will route them differently.
+
+6. Click the checkmark to save each record.
+7. Wait 5–30 minutes for DNS to propagate.
+
+**Test DNS propagation:**
+```bash
+# Run from your Windows PC (after ~15 minutes)
+nslookup emailorchestrator.myysite.me
+nslookup api.emailorchestrator.myysite.me
+# Both should return your EC2 Elastic IP
+```
+
+---
+
+### PHASE 5 — Server Setup on EC2
+
+SSH into your EC2 and run all these commands:
+
+#### 5A — Install Required Software
+
+```bash
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 20 LTS
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Verify
+node --version    # v20.x.x
+npm --version     # 10.x.x
+
+# Install PM2 — keeps Node processes alive
+sudo npm install -g pm2
+
+# Install Nginx — web server + reverse proxy
+sudo apt install -y nginx
+
+# Install Certbot — free SSL via Let's Encrypt
+sudo apt install -y certbot python3-certbot-nginx
+
+# Install Git
+sudo apt install -y git
+
+# Verify Nginx is running
+sudo systemctl status nginx    # should show "active (running)"
+```
+
+#### 5B — Clone Your Repository
+
+```bash
+cd ~
+git clone https://github.com/YOUR_USERNAME/email-orchestrator.git
+cd email-orchestrator
+
+# Install all dependencies
+npm run setup
+```
+
+#### 5C — Configure Backend Environment Variables
+
+```bash
+nano backend/.env
+```
+
+Paste the following, replacing all placeholder values:
+
+```bash
+# ============================================================
+# EmailOrchestrator — Backend Production Environment
+# ============================================================
+
+NODE_ENV=production
+PORT=5000
+CLIENT_URL=https://emailorchestrator.myysite.me
+
+# --- PostgreSQL (AWS RDS) ---
+# Replace with your actual RDS endpoint
+DATABASE_URL="postgresql://postgres:YOUR_RDS_PASSWORD@email-orchestrator-db.XXXXXXXX.us-east-1.rds.amazonaws.com:5432/email_orchestrator?schema=public"
+
+# --- Redis (Upstash) ---
+REDIS_URL=rediss://default:YOUR_UPSTASH_PASSWORD@YOUR_HOST.upstash.io:6379
+
+# --- Elasticsearch (Bonsai.io) ---
+ELASTICSEARCH_NODE=https://USERNAME:PASSWORD@YOURCLUSTER.bonsaisearch.net:443
+ELASTICSEARCH_URL=https://USERNAME:PASSWORD@YOURCLUSTER.bonsaisearch.net:443
+
+# --- Security Secrets ---
+# Generate JWT_SECRET:  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET=PASTE_64_CHAR_HEX_HERE
+
+# ENCRYPTION_SECRET must be EXACTLY 32 characters
+# Generate: node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"  (gives 32 hex chars)
+ENCRYPTION_SECRET=PASTE_EXACTLY_32_CHARS_HERE
+
+# --- Google OAuth ---
+GOOGLE_CLIENT_ID=YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=YOUR_GOOGLE_CLIENT_SECRET
+GOOGLE_CALLBACK_URL=https://api.emailorchestrator.myysite.me/api/auth/google/callback
+
+# --- Slack OAuth ---
+SLACK_CLIENT_ID=YOUR_SLACK_CLIENT_ID
+SLACK_CLIENT_SECRET=YOUR_SLACK_CLIENT_SECRET
+SLACK_REDIRECT_URI=https://api.emailorchestrator.myysite.me/api/slack/callback
+
+# --- Worker ---
+WORKER_CONCURRENCY=10
+DEFAULT_MIN_DELAY_MS=2000
+DEFAULT_HOURLY_LIMIT=100
+```
+
+Save: `Ctrl+X` → `Y` → `Enter`
+
+**Quick way to generate secrets:**
+```bash
+# JWT_SECRET (64 hex chars)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# ENCRYPTION_SECRET (exactly 32 hex chars)
+node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+```
+
+#### 5D — Build Backend + Run Database Migrations
+
+```bash
+cd ~/email-orchestrator/backend
+
+# Build TypeScript to JavaScript
+npm run build
+
+# Apply DB schema to RDS
+npx prisma migrate deploy
+
+# Seed initial data
+npx prisma db seed
+
+cd ..
+```
+
+#### 5E — Build Frontend for Production
+
+```bash
+cd ~/email-orchestrator/frontend
+
+# Create the production env file
+cat > .env.production << 'EOF'
+VITE_API_BASE_URL=https://api.emailorchestrator.myysite.me/api
+EOF
+
+# Build React app (output goes to frontend/dist/)
+npm run build
+
+cd ..
+```
+
+#### 5F — Start Backend with PM2
+
+```bash
+cd ~/email-orchestrator
+
+# Start API server
+pm2 start backend/dist/server.js --name "email-orchestrator-api"
+
+# Start BullMQ worker
+pm2 start backend/dist/worker.js --name "email-orchestrator-worker"
+
+# Save process list (survives reboots)
+pm2 save
+
+# Enable PM2 to auto-start on EC2 reboot
+pm2 startup
+# IMPORTANT: Copy and run the command that pm2 startup outputs!
+# It looks like: sudo env PATH=$PATH:/usr/bin pm2 startup ...
+
+# Check all processes are running
+pm2 status
+```
+
+Expected output:
+```
+┌─────────────────────────────┬─────┬───────┬─────────┐
+│ name                        │ id  │ status│ cpu/mem │
+├─────────────────────────────┼─────┼───────┼─────────┤
+│ email-orchestrator-api      │ 0   │ online│         │
+│ email-orchestrator-worker   │ 1   │ online│         │
+└─────────────────────────────┴─────┴───────┴─────────┘
+```
+
+---
+
+### PHASE 6 — Configure Nginx
+
+Nginx will:
+- Serve your React app at `emailorchestrator.myysite.me`
+- Forward API requests to Express at `api.emailorchestrator.myysite.me`
+
+```bash
+sudo nano /etc/nginx/sites-available/email-orchestrator
+```
+
+Paste this **entire config**:
+
+```nginx
+# ─────────────────────────────────────────────
+# Frontend — Serve React build
+# emailorchestrator.myysite.me
+# ─────────────────────────────────────────────
+server {
+    listen 80;
+    server_name emailorchestrator.myysite.me;
+
+    root /home/ubuntu/email-orchestrator/frontend/dist;
+    index index.html;
+
+    # React Router — serve index.html for all routes
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+}
+
+# ─────────────────────────────────────────────
+# Backend API — Proxy to Express on port 5000
+# api.emailorchestrator.myysite.me
+# ─────────────────────────────────────────────
+server {
+    listen 80;
+    server_name api.emailorchestrator.myysite.me;
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+        proxy_read_timeout 90s;
+    }
+}
+```
+
+Save: `Ctrl+X` → `Y` → `Enter`
+
+```bash
+# Enable the config
+sudo ln -s /etc/nginx/sites-available/email-orchestrator /etc/nginx/sites-enabled/
+
+# Disable default Nginx page
+sudo rm /etc/nginx/sites-enabled/default
+
+# Test the config (must say "syntax is ok")
+sudo nginx -t
+
+# Apply the config
+sudo systemctl reload nginx
+```
+
+---
+
+### PHASE 7 — Enable Free HTTPS with Let's Encrypt
+
+> **Wait for DNS to propagate before this step!**
+> Test: `nslookup emailorchestrator.myysite.me` must return your EC2 IP.
+
+```bash
+# Get SSL for BOTH domains in one command
+sudo certbot --nginx \
+  -d emailorchestrator.myysite.me \
+  -d api.emailorchestrator.myysite.me
+
+# Follow prompts:
+# → Enter your email (for renewal reminders)
+# → (A)gree to terms
+# → (N)o to EFF email sharing
+```
+
+Certbot automatically:
+- Gets free SSL certificates from Let's Encrypt
+- Updates your Nginx config to use HTTPS (port 443)
+- Sets up HTTP → HTTPS redirects
+
+**Test auto-renewal (certificates renew every 90 days):**
+```bash
+sudo certbot renew --dry-run
+```
+
+---
+
+### PHASE 8 — Update OAuth Credentials
+
+Since your URLs changed, update the OAuth apps:
+
+#### Google OAuth
+1. Go to https://console.cloud.google.com → **APIs & Services** → **Credentials**
+2. Click your OAuth 2.0 Client ID
+3. **Authorized JavaScript origins:** Add `https://emailorchestrator.myysite.me`
+4. **Authorized redirect URIs:** Add `https://api.emailorchestrator.myysite.me/api/auth/google/callback`
+5. Click **Save**
+
+#### Slack OAuth
+1. Go to https://api.slack.com/apps → select your app
+2. **OAuth & Permissions** → **Redirect URLs**
+3. Add `https://api.emailorchestrator.myysite.me/api/slack/callback`
+4. Click **Save URLs**
+
+---
+
+### PHASE 9 — Verify Everything Works
+
+```bash
+# 1. Check API health
+curl https://api.emailorchestrator.myysite.me/api/health
+# Expected: {"status":"ok"}
+
+# 2. Check PM2 processes
+pm2 status
+
+# 3. Check Nginx
+sudo systemctl status nginx
+
+# 4. Check SSL certificates
+sudo certbot certificates
+
+# 5. Check logs for errors
+pm2 logs email-orchestrator-api --lines 30
+pm2 logs email-orchestrator-worker --lines 30
+```
+
+Open https://emailorchestrator.myysite.me in your browser ✅
+
+---
+
+## Redeploy After Code Changes
+
+```bash
+# On EC2 — after pushing new code to GitHub:
+cd ~/email-orchestrator
+git pull origin main
+
+# Rebuild backend
+cd backend && npm install && npm run build
+cd ..
+
+# Rebuild frontend (if frontend changed)
+cd frontend && npm run build
+cd ..
+
+# Restart backend services
+pm2 restart email-orchestrator-api
+pm2 restart email-orchestrator-worker
+# Nginx auto-serves the new frontend build — no Nginx restart needed!
+```
+
+---
+
+## Feature Mapping Matrix
+
+| Feature | Backend | Frontend |
+|---|---|---|
+| No-Cron BullMQ Queue | `src/queue/emailQueue.ts` | — |
+| Worker Concurrency | `src/queue/worker.ts` | — |
+| Atomic Redis Rate Limiter | `src/services/rateLimiterService.ts` | — |
+| Slack OAuth & Alerts | `src/services/slackService.ts` | `pages/SettingsPage.tsx` |
+| Elasticsearch + Fallback | `src/services/elasticsearchService.ts` | `components/dashboard/SearchBar.tsx` |
+| Google OAuth + JWT | `src/services/authService.ts` | `pages/LoginPage.tsx` |
+| CSV Lead Parser | — | `hooks/useCsvParser.ts` |
+| Live Queue Dashboard | `src/app.ts` (/admin/queues) | `components/layout/Header.tsx` |

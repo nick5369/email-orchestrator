@@ -1,7 +1,7 @@
 {
-  "name": "reachinbox-backend",
+  "name": "email-orchestrator-backend",
   "version": "1.0.0",
-  "description": "Backend API & Worker process for ReachInbox Email Scheduler",
+  "description": "Backend API & Worker process for EmailOrchestrator",
   "main": "dist/server.js",
   "scripts": {
     "start": "node dist/server.js",

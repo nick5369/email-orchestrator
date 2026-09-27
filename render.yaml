@@ -3,7 +3,7 @@ services:
   # SERVICE 1: Express.js Web API Service
   # ---------------------------------------------------------------------------
   - type: web
-    name: reachinbox-backend-api-v1
+    name: email-orchestrator-api
     runtime: node
     region: oregon
     plan: free
@@ -51,7 +51,7 @@ services:
   # SERVICE 2: BullMQ Background Worker Service
   # ---------------------------------------------------------------------------
   - type: worker
-    name: reachinbox-bullmq-worker
+    name: email-orchestrator-worker
     runtime: node
     region: oregon
     plan: starter # Render background worker service

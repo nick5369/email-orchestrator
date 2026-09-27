@@ -1,7 +1,7 @@
 {
-  "name": "reachinbox-email-scheduler",
+  "name": "email-orchestrator",
   "version": "1.0.0",
-  "description": "Production-grade Full-Stack Email Job Scheduler & Dashboard for ReachInbox",
+  "description": "Production-grade Full-Stack Email Job Scheduler & Dashboard - EmailOrchestrator",
   "main": "index.js",
   "scripts": {
     "setup": "npm --prefix backend install && npm --prefix frontend install",
@@ -12,13 +12,13 @@
     "test": "npm --prefix backend run test"
   },
   "keywords": [
-    "reachinbox",
+    "email-orchestrator",
     "bullmq",
     "typescript",
     "express",
     "react",
     "email-scheduler"
   ],
-  "author": "ReachInbox Candidate",
+  "author": "EmailOrchestrator",
   "license": "ISC"
 }
