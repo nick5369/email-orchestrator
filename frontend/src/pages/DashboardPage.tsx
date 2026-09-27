@@ -115,7 +115,7 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
             <a
-              href="/api/slack/connect"
+              href={import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '') + '/api/slack/connect' : '/api/slack/connect'}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 font-medium shrink-0 transition-colors"
             >
               <Hash className="w-3.5 h-3.5" />

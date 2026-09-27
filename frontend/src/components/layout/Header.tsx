@@ -33,7 +33,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCompose }) => {
 
         {/* Live Queue Admin Dashboard Link */}
         <a
-          href="/admin/queues"
+          href={import.meta.env.VITE_API_BASE_URL ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '') + '/admin/queues' : '/admin/queues'}
           target="_blank"
           rel="noopener noreferrer"
           className="hidden sm:inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#F4D35E] transition-colors bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-[#457B9D]/30"
