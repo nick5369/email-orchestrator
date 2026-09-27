@@ -24,7 +24,7 @@ export const LoginPage: React.FC = () => {
             <span className="font-bold text-2xl text-white tracking-widest">R</span>
           </div>
 
-          <h1 className="text-2xl font-bold tracking-tight text-white font-sans">ReachInbox</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white font-sans">EmailOrchestrator</h1>
           <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
             Enterprise Email Scheduler & BullMQ Rate-Limiting Engine
           </p>
@@ -101,7 +101,7 @@ export const LoginPage: React.FC = () => {
       </div>
 
       <p className="text-[11px] text-slate-600 mt-6">
-        Outbox Labs / ReachInbox Software Development Intern Hiring Assignment
+        Outbox Labs / EmailOrchestrator Software Development Intern Hiring Assignment
       </p>
     </div>
   );

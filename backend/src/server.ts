@@ -71,7 +71,7 @@ async function startServer(): Promise<void> {
 
   const server = app.listen(config.port, () => {
     logger.info(`================================================================`);
-    logger.info(`🚀 ReachInbox API Server running on port ${config.port}`);
+    logger.info(`🚀 EmailOrchestrator API Server running on port ${config.port}`);
     logger.info(`📊 BullBoard Queue Dashboard: http://localhost:${config.port}/admin/queues`);
     logger.info(`================================================================`);
   });

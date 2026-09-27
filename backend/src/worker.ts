@@ -6,7 +6,7 @@ import { logger } from './utils/logger';
 
 async function startWorkerProcess(): Promise<void> {
   logger.info(`================================================================`);
-  logger.info(`⚡ ReachInbox BullMQ Worker Process Initializing...`);
+  logger.info(`⚡ EmailOrchestrator BullMQ Worker Process Initializing...`);
   logger.info(`⚙️  Worker Concurrency Level: ${config.workerConcurrency}`);
   logger.info(`================================================================`);
 

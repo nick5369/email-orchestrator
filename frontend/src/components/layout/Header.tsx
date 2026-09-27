@@ -20,7 +20,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenCompose }) => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-bold text-white text-base tracking-tight font-sans">ReachInbox</span>
+              <span className="font-bold text-white text-base tracking-tight font-sans">EmailOrchestrator</span>
               <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-[#8B1E2D]/10 text-[#F4D35E] border border-[#8B1E2D]/20">
                 Scheduler
               </span>

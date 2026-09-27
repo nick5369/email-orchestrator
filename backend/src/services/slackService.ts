@@ -92,7 +92,7 @@ export class SlackService {
             type: 'header',
             text: {
               type: 'plain_text',
-              text: '⚠️ ReachInbox Scheduler: Sender Rate Limit Hit',
+              text: '⚠️ EmailOrchestrator Scheduler: Sender Rate Limit Hit',
               emoji: true,
             },
           },
@@ -122,7 +122,7 @@ export class SlackService {
             elements: [
               {
                 type: 'mrkdwn',
-                text: '🤖 ReachInbox Automated Protection System — No email lost or dropped.',
+                text: '🤖 EmailOrchestrator Automated Protection System — No email lost or dropped.',
               },
             ],
           },
