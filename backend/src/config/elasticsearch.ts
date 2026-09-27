@@ -7,7 +7,7 @@ export const esClient = new Client({
   enableProductCheck: false,
 } as any);
 
-export const EMAIL_INDEX_NAME = 'reachinbox_emails_v1';
+export const EMAIL_INDEX_NAME = 'email_orchestrator_emails_v1';
 
 export async function initializeElasticsearchIndex(): Promise<boolean> {
   try {

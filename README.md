@@ -1,4 +1,4 @@
-﻿# EmailOrchestrator — Enterprise Email Job Scheduler & Dashboard
+# EmailOrchestrator — Enterprise Email Job Scheduler & Dashboard
 
 A production-grade, restart-safe, multi-tenant email scheduling platform built with **TypeScript, Express.js, BullMQ, Redis, PostgreSQL, Prisma, Elasticsearch, React, Vite, and Tailwind CSS**.
 
@@ -56,8 +56,8 @@ A production-grade, restart-safe, multi-tenant email scheduling platform built w
             +-------------+-----------+
             |             |           |
         PostgreSQL      Redis     Elasticsearch
-        AWS RDS Free   Upstash    Bonsai.io
-        (12 months)    Free       Free Sandbox
+        Neon Free      Upstash    Bonsai.io
+        (always free)  Free       Free Sandbox
 ```
 
 ---
@@ -109,7 +109,7 @@ URLs:
 | Service | Plan | Cost |
 |---|---|---|
 | EC2 t2.micro | Free tier (750 hrs/month) | Free |
-| RDS PostgreSQL t3.micro | Free tier (750 hrs/month) | Free |
+| Neon PostgreSQL | Free forever (0.5 GB, no credit card) | Free |
 | Upstash Redis | Free (10,000 cmds/day) | Free |
 | Bonsai.io Elasticsearch | Free sandbox (125MB) | Free |
 | Let's Encrypt SSL | Always free | Free |
@@ -156,33 +156,32 @@ rediss://default:ABCDEFG@your-host.upstash.io:6379
 https://USERNAME:PASSWORD@abc123.bonsaisearch.net:443
 ```
 
-#### 2C — AWS RDS PostgreSQL
+#### 2C — Neon PostgreSQL (Free, No Credit Card)
 
-1. AWS Console → search **RDS** → **Create database**
-2. Choose: **Standard create** → **PostgreSQL**
-3. Template: **Free tier**
-4. Settings:
-   - DB identifier: `email-orchestrator-db`
-   - Master username: `postgres`
-   - Master password: choose a strong password, save it
-5. Instance: `db.t3.micro` | Storage: `20 GB gp2`
-6. Connectivity:
-   - Public access: **YES**
-   - Create new security group: `email-orchestrator-rds-sg`
-7. Additional config → Initial database name: `email_orchestrator`
-8. Click **Create database** (takes ~5 minutes)
+1. Go to https://neon.tech → Sign Up with GitHub (free forever)
+2. Click **New Project**
+3. Project name: `email-orchestrator`
+4. PostgreSQL version: **16** (latest)
+5. Region: **AWS us-east-1** (closest to EC2)
+6. Click **Create Project**
+7. You will immediately see a connection string — click **Copy snippet**
 
-After creation: Go to the DB → copy the **Endpoint** hostname.
+The URL looks like:
 
 ```
-postgresql://postgres:YOUR_PASSWORD@email-orchestrator-db.XXXXXXXX.us-east-1.rds.amazonaws.com:5432/email_orchestrator?schema=public
+postgresql://username:password@ep-XXXX.us-east-2.aws.neon.tech/neondb?sslmode=require
 ```
 
-**Allow connections to RDS:**
-RDS Console → your DB → under Security → click the VPC security group →
-Inbound rules → Edit → Add rule:
-- Type: PostgreSQL | Port: 5432 | Source: `0.0.0.0/0`
-- Save rules
+**Important:** Neon uses a different database name by default (`neondb`). You can either:
+- Use it as-is (`neondb`) — works fine
+- Or go to **Databases** tab → **New Database** → name it `email_orchestrator`
+
+The final `DATABASE_URL` will look like:
+```
+postgresql://username:password@ep-XXXX.us-east-2.aws.neon.tech/email_orchestrator?sslmode=require
+```
+
+> No security group or firewall config needed — Neon allows connections from anywhere by default.
 
 ---
 
@@ -325,9 +324,9 @@ NODE_ENV=production
 PORT=5000
 CLIENT_URL=https://emailorchestrator.myysite.me
 
-# --- PostgreSQL (AWS RDS) ---
-# Replace with your actual RDS endpoint
-DATABASE_URL="postgresql://postgres:YOUR_RDS_PASSWORD@email-orchestrator-db.XXXXXXXX.us-east-1.rds.amazonaws.com:5432/email_orchestrator?schema=public"
+# --- PostgreSQL (Neon) ---
+# Copy from Neon dashboard → your project → Connection string
+DATABASE_URL="postgresql://username:password@ep-XXXX.us-east-2.aws.neon.tech/email_orchestrator?sslmode=require"
 
 # --- Redis (Upstash) ---
 REDIS_URL=rediss://default:YOUR_UPSTASH_PASSWORD@YOUR_HOST.upstash.io:6379
@@ -379,7 +378,7 @@ cd ~/email-orchestrator/backend
 # Build TypeScript to JavaScript
 npm run build
 
-# Apply DB schema to RDS
+# Apply DB schema to Neon (runs migrations remotely)
 npx prisma migrate deploy
 
 # Seed initial data
